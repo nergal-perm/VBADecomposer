@@ -1,52 +1,74 @@
-﻿/*
- * Created by SharpDevelop.
- * User: terekhov-ev
- * Date: 31.07.2015
- * Time: 9:05
- * 
- * To change this template use Tools | Options | Coding | Edit Standard Headers.
- */
 using System;
 using System.IO;
+using System.Resources;
 using System.Runtime.InteropServices;
 using Microsoft.Office.Interop.Excel;
 using Microsoft.Vbe.Interop;
 
-namespace VBADecomposer {
-	class Program {
-		public static void Main(string[] args) {
-			Console.WriteLine("Hello World!");
-			try {
-				ExtractCode();
-			} catch (Exception e) {
-				Console.WriteLine(e.Message);
-				Console.WriteLine(e.StackTrace);
-			}
-			// TODO: Implement Functionality Here
-						
-			Console.Write("Press any key to continue . . . ");
-			Console.ReadKey(true);
+namespace VBADecomposer.Commands {
+    public sealed class DecomposeCommand : BaseCommand {
+		private string _workbookPath;
+
+
+		public DecomposeCommand(string[] commandLine)
+			: base(commandLine) {
 		}
-		
+
+        #region Implemented abstract members
+
+        public override bool run() {
+        	if (!CheckPrerequisites()) {
+        		return false;
+        	}
+        	ExtractCode();
+            return true;
+        }
+
+        public override bool argsAreOk() {
+            bool fileParam = false; //-file parameter is required, so we keep a flag to show if it's present
+        	int argsCount = _commandLine.Length;
+
+        	for (int i = 1; i < argsCount; i++) {
+        		switch (_commandLine[i].ToUpper()) {
+        			case "-FILE":
+        				if (i+1 < argsCount) {
+                            _workbookPath = _commandLine[i+1];
+                            fileParam = true;
+                        } else {
+                            return false;
+                        }
+                        break;
+                    default:
+                        break;
+        		}
+        	}
+
+        	return fileParam;
+        }
+
+        #endregion
+
 		public static void ExtractCode() {
 			Microsoft.Office.Interop.Excel.Application _xlApp = new Microsoft.Office.Interop.Excel.Application();
-			
+
 			// open a workbook with disabled macros
 			var tempMacroPolicy = _xlApp.AutomationSecurity;
 			_xlApp.AutomationSecurity = Microsoft.Office.Core.MsoAutomationSecurity.msoAutomationSecurityForceDisable;
 			var wb = _xlApp.Workbooks.Open(@"D:\Temp\Redminereports.xlsm");
 			_xlApp.AutomationSecurity = tempMacroPolicy;
-			
+
 			// Scan through VBComponents
 			var project = wb.VBProject;
 			foreach (VBComponent module in project.VBComponents) {
 				ExtractVBComponent(module, wb.Path +@"\Source\", "", true);
 			}
+
+			// free the workbook and close Excel application
 			wb.Close(false);
 			Marshal.ReleaseComObject(wb);
 			_xlApp.Quit();
 		}
-		
+
 		public static void ExtractVBComponent(VBComponent comp, string path, string fName, bool overwrite) {
 			// define file name
 			var extension = GetFileExtensionFor(comp);
@@ -55,14 +77,14 @@ namespace VBADecomposer {
 			} else if (fName.IndexOf("."[0]) == 0) {
 				fName = fName + extension;
 			}
-			
-			// define folder path			
+
+			// define folder path
 			if (path.EndsWith(@"\", StringComparison.CurrentCultureIgnoreCase)) {
 				fName = path + fName;
 			} else {
 				fName = path + @"\" + fName;
 			}
-			
+
 			// is it possible to write to path
 			FileInfo file = new FileInfo(fName);
 			if (file.Exists) {
@@ -70,10 +92,10 @@ namespace VBADecomposer {
 					file.Delete();
 				}
 			}
-			
+
 			comp.Export(fName);
 		}
-		
+
 		private static string GetFileExtensionFor(VBComponent vbComp) {
 			switch (vbComp.Type) {
 				case vbext_ComponentType.vbext_ct_ClassModule:
@@ -88,6 +110,17 @@ namespace VBADecomposer {
 					return ".bas";
 			}
 		}
-			
-	}
+        
+        public bool CheckPrerequisites() {
+        	bool result = true;
+        	
+        	// 
+        	if (!File.Exists(_workbookPath)) {
+        		Console.WriteLine("Рабочая книга Excel (" + _workbookPath + ") не найдена!");
+        		result = false;
+        	}
+        	
+        	return result;
+        }
+    }
 }
