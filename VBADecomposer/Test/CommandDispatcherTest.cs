@@ -39,5 +39,13 @@ namespace VBADecomposer.Test {
 			Assert.AreEqual(typeof(DecomposeCommand), _command.GetType());
 			Assert.IsFalse(((DecomposeCommand)_command).CheckPrerequisites());			
 		}
+		
+		[Test]
+		public void shouldGetCorrectBuildCommand() {
+			// -folder parameter (with value = folder path) is required
+			// -file parameter (with value = workbook name) is required
+			_command = CommandFactory.getCommand(new string[] { "build" });
+			Assert.AreEqual(typeof(HelpCommand), _command.GetType());
+		}
 	}
 }

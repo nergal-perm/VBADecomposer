@@ -48,7 +48,7 @@ namespace VBADecomposer.Commands {
 
         #endregion
 
-		public static void ExtractCode() {
+		public void ExtractCode() {
 			Microsoft.Office.Interop.Excel.Application _xlApp = new Microsoft.Office.Interop.Excel.Application();
 
 			// open a workbook with disabled macros
@@ -69,7 +69,7 @@ namespace VBADecomposer.Commands {
 			_xlApp.Quit();
 		}
 
-		public static void ExtractVBComponent(VBComponent comp, string path, string fName, bool overwrite) {
+		public void ExtractVBComponent(VBComponent comp, string path, string fName, bool overwrite) {
 			// define file name
 			var extension = GetFileExtensionFor(comp);
 			if (fName.Trim() == String.Empty) {
