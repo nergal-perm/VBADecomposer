@@ -1,0 +1,6 @@
+# external packages
+packages
+
+# binaries and objects
+VBADecomposer/bin
+VBADecomposer/obj
