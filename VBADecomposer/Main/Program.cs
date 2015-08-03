@@ -21,8 +21,8 @@ namespace VBADecomposer {
 				Console.WriteLine(e.StackTrace);
 			}
 
-			Console.Write("Press any key to continue . . . ");
-			Console.ReadKey(true);
+//			Console.Write("Press any key to continue . . . ");
+//			Console.ReadKey(true);
 		}
 
 	}

@@ -66,7 +66,12 @@ namespace VBADecomposer.Commands {
 			Excel.Workbook wb = _xlApp.Workbooks.Add();
         	
 			foreach (FileInfo file in new DirectoryInfo(_sourceFolder).GetFiles()) {
-				ImportComponent(file, wb);
+				if (file.Extension == ".guid") {
+					// TODO: Implement references import
+					//ImportReferences(file, wb);
+				} else {
+					ImportComponent(file, wb);
+				}
 			}
         	
 			wb.SaveAs(_workbookPath, Excel.XlFileFormat.xlOpenXMLWorkbookMacroEnabled);
@@ -75,16 +80,33 @@ namespace VBADecomposer.Commands {
 			_xlApp.Quit();        	
 		}
         
+		private void ImportReferences(FileInfo f, Excel.Workbook wb) {
+			VBProject project = wb.VBProject;
+			var sr = f.OpenText();
+			while (!sr.EndOfStream) {
+				string referencePath = sr.ReadLine();
+				Console.WriteLine(referencePath);
+				project.References.AddFromFile(sr.ReadLine());
+			}
+		}
+		
         
 		private void ImportComponent(FileInfo f, Excel.Workbook wb) {
 			VBA.VBProject project = wb.VBProject;
 			VBA.VBComponent component = null;
+			string moduleName = f.Name.Substring(0, f.Name.LastIndexOf("."[0]));
 			try {
-				string moduleName = f.Name.Substring(0, f.Name.LastIndexOf("."[0]));
 				Console.Write("Компонент {0}. ", moduleName);
 				component = project.VBComponents.Item(moduleName);
 			} catch (Exception e) {
-				// do nothing
+				if (f.Extension ==".wks") {
+//					Console.Write("Добавляем новый лист, было {0}", wb.Worksheets.Count);
+//					Excel.Worksheet ws = (Excel.Worksheet)wb.Worksheets.Add();
+//					Console.WriteLine(", стало {0}", wb.Worksheets.Count);
+//					ws._CodeName = moduleName;
+//					component = project.VBComponents.Add(vbext_ComponentType.vbext_ct_Document);
+//					component.Name = moduleName;
+				}
 			}
         	
 			if (component == null) {

@@ -54,7 +54,7 @@ namespace VBADecomposer.Commands {
 			// open a workbook with disabled macros
 			var tempMacroPolicy = _xlApp.AutomationSecurity;
 			_xlApp.AutomationSecurity = Microsoft.Office.Core.MsoAutomationSecurity.msoAutomationSecurityForceDisable;
-			var wb = _xlApp.Workbooks.Open(@"D:\Temp\Redminereports.xlsm");
+			var wb = _xlApp.Workbooks.Open(_workbookPath);
 			_xlApp.AutomationSecurity = tempMacroPolicy;
 
 			// Scan through VBComponents
@@ -62,6 +62,17 @@ namespace VBADecomposer.Commands {
 			foreach (VBComponent module in project.VBComponents) {
 				ExtractVBComponent(module, wb.Path +@"\Source\", "", true);
 			}
+
+			FileInfo file = new FileInfo(wb.Path + @"\Source\refs.guid");
+			var sw = file.AppendText();
+			foreach (Reference r in project.References) {
+				if (!r.BuiltIn) {
+					sw.WriteLine(r.FullPath);
+				}
+			}
+			sw.Close();
+			
+
 
 			// free the workbook and close Excel application
 			wb.Close(false);
@@ -101,7 +112,7 @@ namespace VBADecomposer.Commands {
 				case vbext_ComponentType.vbext_ct_ClassModule:
 					return ".cls";
 				case vbext_ComponentType.vbext_ct_Document:
-					return ".cls";
+					return ".wks";
 				case vbext_ComponentType.vbext_ct_MSForm:
 					return ".frm";
 				case vbext_ComponentType.vbext_ct_StdModule:
