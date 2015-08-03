@@ -46,6 +46,20 @@ namespace VBADecomposer.Test {
 			// -file parameter (with value = workbook name) is required
 			_command = CommandFactory.getCommand(new string[] { "build" });
 			Assert.AreEqual(typeof(HelpCommand), _command.GetType());
+			
+			_command = CommandFactory.getCommand(new string[] {"build","-folder",@"D:\Temp\Source"});
+			Assert.AreEqual(typeof(HelpCommand), _command.GetType());
+			
+			_command = CommandFactory.getCommand(new string[] {"build", "-file", @"workbook.xlsm"});
+			Assert.AreEqual(typeof(HelpCommand), _command.GetType());
+			
+			// The order of -file and -folder params is irrelevant
+			_command = CommandFactory.getCommand(new string[] {"build", "-file", @"workbook.xlsm", "-folder", @"D:\Temp\Source"});
+			Assert.AreEqual(typeof(BuildCommand), _command.GetType());			
+			
+			_command = CommandFactory.getCommand(new string[] {"build", "-folder", @"D:\Temp\Source", "-file", @"workbook.xlsm"});
+			Assert.AreEqual(typeof(BuildCommand), _command.GetType());						
 		}
+		
 	}
 }

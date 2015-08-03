@@ -14,60 +14,95 @@ using Excel = Microsoft.Office.Interop.Excel;
 using VBA = Microsoft.Vbe.Interop;
 
 namespace VBADecomposer.Commands {
-    public class BuildCommand : BaseCommand {	
+	public class BuildCommand : BaseCommand {
+		private string _workbookPath;
+		private string _sourceFolder;
+		
 		public BuildCommand(string[] commandLine)
 			: base(commandLine) {
 		}
 	
-        #region Implemented abstract members
+		#region Implemented abstract members
 
-        public override bool run() {
-        	ImportCode();
-        	return true;
-        }
+		public override bool run() {
+			ImportCode();
+			return true;
+		}
 
-        public override bool argsAreOk() {
-        	return true;
-        }
+		public override bool argsAreOk() {
+			bool fileParam = false; //-file parameter is required, so we keep a flag to show if it's present
+			bool folderParam = false;
+			int argsCount = _commandLine.Length;
 
-        #endregion
+			for (int i = 1; i < argsCount; i++) {
+				switch (_commandLine[i].ToUpper()) {
+					case "-FILE":
+						if (i + 1 < argsCount) {
+							_workbookPath = _commandLine[i + 1];
+							fileParam = true;
+						} else {
+							return false;
+						}
+						break;
+					case "-FOLDER":
+						if (i + 1 < argsCount) {
+							_sourceFolder = _commandLine[i + 1];
+							folderParam = true;
+						} else {
+							return false;
+						}
+						break;
+					default:
+						break;
+				}
+			}        	
+			return fileParam && folderParam;
+		}
+
+		#endregion
         
-        public void ImportCode() {
-        	Excel.Application _xlApp = new Excel.Application();
-        	Excel.Workbook wb = _xlApp.Workbooks.Add();
+		public void ImportCode() {
+			Excel.Application _xlApp = new Excel.Application();
+			Excel.Workbook wb = _xlApp.Workbooks.Add();
         	
-        	foreach (FileInfo file in new DirectoryInfo(@"D:\Temp\Source").GetFiles()) {
-        		ImportComponent(file, wb);
-        	}
+			foreach (FileInfo file in new DirectoryInfo(_sourceFolder).GetFiles()) {
+				ImportComponent(file, wb);
+			}
         	
-        	wb.SaveAs(@"D:\Temp\Built.xlsm", Excel.XlFileFormat.xlOpenXMLWorkbookMacroEnabled);
+			wb.SaveAs(_workbookPath, Excel.XlFileFormat.xlOpenXMLWorkbookMacroEnabled);
 			wb.Close(false);
 			Marshal.ReleaseComObject(wb);
 			_xlApp.Quit();        	
-        }
+		}
         
         
-        private void ImportComponent(FileInfo f, Excel.Workbook wb) {
-        	VBA.VBProject project = wb.VBProject;
-        	VBA.VBComponent component = null;
-        	try {
-        		component = project.VBComponents.Item(f.Name);
-        	} catch (Exception e) {
-        		// do nothing
-        	}
+		private void ImportComponent(FileInfo f, Excel.Workbook wb) {
+			VBA.VBProject project = wb.VBProject;
+			VBA.VBComponent component = null;
+			try {
+				string moduleName = f.Name.Substring(0, f.Name.LastIndexOf("."[0]));
+				Console.Write("Компонент {0}. ", moduleName);
+				component = project.VBComponents.Item(moduleName);
+			} catch (Exception e) {
+				// do nothing
+			}
         	
-        	if (component == null) {
-        		project.VBComponents.Import(f.FullName);
-        	} else {
-        		if (component.Type == vbext_ComponentType.vbext_ct_Document) {
-        			var tempComp = project.VBComponents.Import(f.FullName);
-        			component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines);
-        			var S = tempComp.CodeModule.Lines[1, tempComp.CodeModule.CountOfLines];
-        			component.CodeModule.InsertLines(1, S);
-        			project.VBComponents.Remove(tempComp);
-        		}
-        	}
-        	f.Delete();
-        }
-    }
+			if (component == null) {
+				Console.WriteLine("Импорт нового модуля из файла {0}", f.FullName);
+				project.VBComponents.Import(f.FullName);
+			} else {
+				if (component.Type == vbext_ComponentType.vbext_ct_Document) {
+					Console.WriteLine("Импорт существующего модуля: {0}", component.Name);	
+					var tempComp = project.VBComponents.Import(f.FullName);
+					component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines);
+					if (tempComp.CodeModule.CountOfLines > 0) {
+						var S = tempComp.CodeModule.Lines[1, tempComp.CodeModule.CountOfLines];
+						component.CodeModule.InsertLines(1, S);
+					}
+					project.VBComponents.Remove(tempComp);
+				}
+			}
+			f.Delete();
+		}
+	}
 }
