@@ -6,7 +6,7 @@ using Microsoft.Office.Interop.Excel;
 using Microsoft.Vbe.Interop;
 
 namespace VBADecomposer.Commands {
-    public sealed class DecomposeCommand : BaseCommand {
+	public sealed class DecomposeCommand : BaseCommand {
 		private string _workbookPath;
 
 
@@ -14,43 +14,47 @@ namespace VBADecomposer.Commands {
 			: base(commandLine) {
 		}
 
-        #region Implemented abstract members
+		#region Implemented abstract members
 
-        public override bool run() {
-        	if (!CheckPrerequisites()) {
-        		return false;
-        	}
-        	ExtractCode();
-            return true;
-        }
+		public override bool run() {
+			if (!CheckPrerequisites()) {
+				return false;
+			}
+			ExtractCode();
+			return true;
+		}
 
-        public override bool argsAreOk() {
-            bool fileParam = false; //-file parameter is required, so we keep a flag to show if it's present
-        	int argsCount = _commandLine.Length;
+		public override bool argsAreOk() {
+			bool fileParam = false; //-file parameter is required, so we keep a flag to show if it's present
+			int argsCount = _commandLine.Length;
 
-        	for (int i = 1; i < argsCount; i++) {
-        		switch (_commandLine[i].ToUpper()) {
-        			case "-FILE":
-        				if (i+1 < argsCount) {
-                            _workbookPath = _commandLine[i+1];
-                            fileParam = true;
-                        } else {
-                            return false;
-                        }
-                        break;
-                    default:
-                        break;
-        		}
-        	}
+			for (int i = 1; i < argsCount; i++) {
+				switch (_commandLine[i].ToUpper()) {
+					case "-FILE":
+						if (i + 1 < argsCount) {
+							_workbookPath = _commandLine[i + 1];
+							fileParam = true;
+						} else {
+							return false;
+						}
+						break;
+					default:
+						break;
+				}
+			}
 
-        	return fileParam;
-        }
+			return fileParam;
+		}
 
-        #endregion
+		#endregion
 
 		public void ExtractCode() {
+			// Create folders for source files
+			FileInfo tempFI = new FileInfo(_workbookPath);
+			DirectoryInfo tempDI = tempFI.Directory.CreateSubdirectory(tempFI.Name.Replace(tempFI.Extension,"") + "Source");
+			
 			Microsoft.Office.Interop.Excel.Application _xlApp = new Microsoft.Office.Interop.Excel.Application();
-
+			
 			// open a workbook with disabled macros
 			var tempMacroPolicy = _xlApp.AutomationSecurity;
 			_xlApp.AutomationSecurity = Microsoft.Office.Core.MsoAutomationSecurity.msoAutomationSecurityForceDisable;
@@ -60,19 +64,18 @@ namespace VBADecomposer.Commands {
 			// Scan through VBComponents
 			var project = wb.VBProject;
 			foreach (VBComponent module in project.VBComponents) {
-				ExtractVBComponent(module, wb.Path +@"\Source\", "", true);
+				ExtractVBComponent(module, tempDI.FullName, "", true);
 			}
 
-			FileInfo file = new FileInfo(wb.Path + @"\Source\refs.guid");
-			var sw = file.AppendText();
+			FileInfo file = new FileInfo(tempDI.FullName + @"\refs.guid");
+			var sw = file.CreateText();
 			foreach (Reference r in project.References) {
 				if (!r.BuiltIn) {
-					sw.WriteLine(r.FullPath);
+					string[] refInfo = {r.FullPath, r.Guid, r.Major.ToString(), r.Minor.ToString()};
+					sw.WriteLine(String.Join(",", refInfo));
 				}
 			}
 			sw.Close();
-			
-
 
 			// free the workbook and close Excel application
 			wb.Close(false);
@@ -81,6 +84,12 @@ namespace VBADecomposer.Commands {
 		}
 
 		public void ExtractVBComponent(VBComponent comp, string path, string fName, bool overwrite) {
+			// do we need to export component?
+			if (comp.CodeModule.CountOfLines == 0) {
+				return;
+			}
+
+        	
 			// define file name
 			var extension = GetFileExtensionFor(comp);
 			if (fName.Trim() == String.Empty) {
@@ -99,7 +108,7 @@ namespace VBADecomposer.Commands {
 			// is it possible to write to path
 			FileInfo file = new FileInfo(fName);
 			if (file.Exists) {
-				if(overwrite) {
+				if (overwrite) {
 					file.Delete();
 				}
 			}
@@ -122,16 +131,16 @@ namespace VBADecomposer.Commands {
 			}
 		}
         
-        public bool CheckPrerequisites() {
-        	bool result = true;
+		public bool CheckPrerequisites() {
+			bool result = true;
         	
-        	// 
-        	if (!File.Exists(_workbookPath)) {
-        		Console.WriteLine("Рабочая книга Excel (" + _workbookPath + ") не найдена!");
-        		result = false;
-        	}
+			// 
+			if (!File.Exists(_workbookPath)) {
+				Console.WriteLine("Рабочая книга Excel (" + _workbookPath + ") не найдена!");
+				result = false;
+			}
         	
-        	return result;
-        }
-    }
+			return result;
+		}
+	}
 }
